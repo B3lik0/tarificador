@@ -21,3 +21,8 @@ Desktop.ini
 # Compiled/temporary files
 *.pyc
 __pycache__/
+
+./files
+files
+log.txt
+sql.txt
