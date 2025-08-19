@@ -1,0 +1,13 @@
+services:
+  watcher:
+    build: .
+    image: tarificador-watcher:latest
+    container_name: tarificador_watcher
+    command: ["node", "watcher-sftp.js"]
+    volumes:
+      - ./files:/app/files
+      - ./log.txt:/app/log.txt
+      - ./.env:/app/.env:ro
+    environment:
+      - LOCAL_PATH=/app/files
+    restart: unless-stopped
