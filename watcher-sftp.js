@@ -5,7 +5,6 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
-const sftp = new SftpClient();
 const LOCAL_DIR = process.env.LOCAL_PATH || 'files';
 const LOG_FILE = process.env.LOG_PATH
     ? path.resolve(process.env.LOG_PATH)
@@ -38,11 +37,13 @@ let reconnecting = false;
 
 // Conectar y mantener la sesión
 async function initSFTP() {
+    const sftp = new SftpClient();
+
     try {
         await sftp.connect(config);
         logMessage('✅ Conectado al SFTP y sesión mantenida');
 
-        await descargarCSV();
+        await descargarCSV(sftp);
 
         chokidar
             .watch(LOCAL_DIR, { persistent: true, ignoreInitial: true, depth: 0 })
@@ -76,7 +77,7 @@ async function handleReconnect() {
 }
 
 // Función para descargar CSVs
-async function descargarCSV() {
+async function descargarCSV(sftp) {
     try {
         const list = await sftp.list(REMOTE_DIR);
 
