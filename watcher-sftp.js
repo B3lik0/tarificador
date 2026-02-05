@@ -18,6 +18,9 @@ function logMessage(message) {
     console.log(line.trim());
 }
 
+// Log de configuración al iniciar
+logMessage(`⚙️  Configuración: LOCAL_PATH=${LOCAL_DIR}, REMOTE_PATH=${REMOTE_DIR}`);
+
 // Configuración SFTP
 const config = {
     host: process.env.SFTP_HOST,
