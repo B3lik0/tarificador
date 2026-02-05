@@ -25,7 +25,13 @@ const config = {
     username: process.env.SFTP_USER,
     password: process.env.SFTP_PASSWORD,
     algorithms: {
-        kex: ['diffie-hellman-group1-sha1', 'diffie-hellman-group14-sha1'],
+        kex: [
+            'diffie-hellman-group14-sha256',
+            'diffie-hellman-group14-sha1',
+            'diffie-hellman-group1-sha1',
+            'ecdh-sha2-nistp256',
+            'ecdh-sha2-nistp384',
+        ],
     },
     hostVerifier: (hash) => {
         logMessage(`Host fingerprint: ${hash}`);
