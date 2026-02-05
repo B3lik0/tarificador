@@ -40,17 +40,20 @@ const config = {
 };
 
 let reconnecting = false;
+let sftp = null;
 
 // Conectar y mantener la sesión
 async function initSFTP() {
-    const sftp = new SftpClient();
+    sftp = new SftpClient();
 
     try {
         await sftp.connect(config);
         logMessage('✅ Conectado al SFTP y sesión mantenida');
 
-        await descargarCSV(sftp);
+        // Descargar archivos al conectar
+        await descargarCSV();
 
+        // Configurar watcher para archivos locales
         chokidar
             .watch(LOCAL_DIR, { persistent: true, ignoreInitial: true, depth: 0 })
             .on('add', (filePath) => {
@@ -61,6 +64,7 @@ async function initSFTP() {
             });
 
         // Loop periódico para revisar nuevos archivos remotos
+        logMessage('⏱️ Iniciando revisor de archivos remotos cada 50 minutos');
         setInterval(descargarCSV, 50 * 60 * 1000); // cada 50 minutos
     } catch (err) {
         logMessage(`❌ Error inicial de SFTP: ${err.message}`);
@@ -74,7 +78,9 @@ async function handleReconnect() {
     reconnecting = true;
 
     logMessage('🔄 Intentando reconectar al SFTP en 30s...');
-    sftp.end().catch(() => { });
+    if (sftp) {
+        sftp.end().catch(() => { });
+    }
 
     setTimeout(async () => {
         reconnecting = false;
@@ -83,9 +89,15 @@ async function handleReconnect() {
 }
 
 // Función para descargar CSVs
-async function descargarCSV(sftp) {
+async function descargarCSV() {
+    if (!sftp) {
+        logMessage('⚠️  Conexión SFTP no disponible');
+        return;
+    }
+
     try {
         const list = await sftp.list(REMOTE_DIR);
+        logMessage(`📋 Revisando directorio remoto: ${list.length} archivos encontrados`);
 
         for (const file of list) {
             if (file.name.toLowerCase().endsWith('.csv')) {
