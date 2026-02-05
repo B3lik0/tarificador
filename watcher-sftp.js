@@ -63,7 +63,6 @@ async function initSFTP() {
                 }
             });
 
-        // Loop periódico para revisar nuevos archivos remotos
         logMessage('⏱️ Iniciando revisor de archivos remotos cada 50 minutos');
         setInterval(descargarCSV, 50 * 60 * 1000); // cada 50 minutos
     } catch (err) {
@@ -96,24 +95,45 @@ async function descargarCSV() {
     }
 
     try {
-        const list = await sftp.list(REMOTE_DIR);
-        logMessage(`📋 Revisando directorio remoto: ${list.length} archivos encontrados`);
+        // Crear carpeta local si no existe
+        if (!fs.existsSync(LOCAL_DIR)) {
+            fs.mkdirSync(LOCAL_DIR, { recursive: true });
+            logMessage(`📁 Carpeta local creada: ${LOCAL_DIR}`);
+        }
 
-        for (const file of list) {
-            if (file.name.toLowerCase().endsWith('.csv')) {
-                const localPath = path.join(LOCAL_DIR, file.name);
-                if (!fs.existsSync(localPath)) {
-                    await sftp.get(`${REMOTE_DIR}/${file.name}`, localPath);
-                    logMessage(`📥 Descargado: ${file.name}`);
-                    try {
-                        await procesarCSV(localPath);
-                    } catch (err) {
-                        logMessage(`❌ Error al procesar CSV: ${err.message}`);
-                    }
-                } else {
-                    logMessage(`CSV ya existente: ${file.name}`);
+        // Listar archivos remotos
+        const remoteFiles = await sftp.list(REMOTE_DIR);
+        const csvFilesRemote = remoteFiles
+            .filter(file => file.name.toLowerCase().endsWith('.csv'))
+            .map(file => file.name);
+
+        // Listar archivos locales
+        const localFiles = fs.existsSync(LOCAL_DIR) 
+            ? fs.readdirSync(LOCAL_DIR).filter(f => f.toLowerCase().endsWith('.csv'))
+            : [];
+
+        logMessage(`📋 Directorio remoto: ${csvFilesRemote.length} CSV(s) | Directorio local: ${localFiles.length} CSV(s)`);
+
+        // Descargar archivos que existen remotamente pero no localmente
+        for (const fileName of csvFilesRemote) {
+            if (!localFiles.includes(fileName)) {
+                const localPath = path.join(LOCAL_DIR, fileName);
+                const remotePath = `${REMOTE_DIR}/${fileName}`.replace(/\/\//g, '/');
+                
+                logMessage(`📥 Descargando: ${fileName}`);
+                await sftp.get(remotePath, localPath);
+                logMessage(`✅ Descargado: ${fileName}`);
+                
+                try {
+                    await procesarCSV(localPath);
+                } catch (err) {
+                    logMessage(`❌ Error al procesar CSV: ${err.message}`);
                 }
             }
+        }
+
+        if (csvFilesRemote.length === localFiles.length && csvFilesRemote.length > 0) {
+            logMessage(`✔️ Todos los archivos CSV están sincronizados`);
         }
     } catch (err) {
         logMessage(`❌ Error descargando CSVs: ${err.message}`);
